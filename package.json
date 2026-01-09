@@ -16,5 +16,13 @@
   "bugs": {
     "url": "https://github.com/ilyas-doughmi/dock-cli/issues"
   },
-  "homepage": "https://github.com/ilyas-doughmi/dock-cli#readme"
+  "bin": {
+    "dock": "./bin/dock.js"
+  },
+  "homepage": "https://github.com/ilyas-doughmi/dock-cli#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^14.0.2",
+    "ora": "^9.0.0"
+  }
 }
