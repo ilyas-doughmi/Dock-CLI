@@ -5,13 +5,13 @@ const config = new Conf({
 });
 
 
-module.export = {
+module.exports = {
     set:(key,value) => {
         config.set(key,value);
     },
 
     get:(key) =>{
-        config.get(key);
+        return config.get(key);
     },
 
     delete:(key) => {
