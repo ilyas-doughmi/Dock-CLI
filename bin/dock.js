@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const { Command } = require('commander');
-const logger = require('../src/utils/logger');
+import { Command } from 'commander';
+import * as logger from '../src/utils/logger.js';
 const program = new Command();
 
 program
