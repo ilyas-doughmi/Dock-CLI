@@ -5,20 +5,12 @@ const config = new Conf({
 });
 
 
-module.exports = {
-    set:(key,value) => {
-        config.set(key,value);
-    },
 
-    get:(key) =>{
-        return config.get(key);
-    },
+export const set = (key, value) => config.set(key, value);
 
-    delete:(key) => {
-        config.delete(key);
-    },
+export const get = (key) => config.get(key);
 
-    clear: () => {
-        config.clear();
-    }
-};
+export const del = (key) => config.delete(key);
+
+export const clear = () => config.clear();
+;
