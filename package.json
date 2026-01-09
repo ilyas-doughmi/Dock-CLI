@@ -1,6 +1,7 @@
 {
   "name": "dock-cli",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -23,6 +24,7 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^14.0.2",
+    "conf": "^15.0.2",
     "ora": "^9.0.0"
   }
 }
