@@ -5,7 +5,7 @@ import * as logger from '../src/utils/logger.js';
 import loginCommand from '../src/commands/login.js';
 import deployCommand from '../src/commands/deploy.js';
 import logoutCommand from '../src/commands/logout.js';
-
+import initCommand from '../src/commands/init.js';
 
 const program = new Command();
 
@@ -30,5 +30,12 @@ program
   .description('Log out and remove stored credentials')
   .action(async () => {
     await logoutCommand();
+  });
+
+program
+  .command('init')
+  .description('Initialize a new PHP project with default files')
+  .action(async () => {
+    await initCommand();
   });
 program.parse(process.argv);
