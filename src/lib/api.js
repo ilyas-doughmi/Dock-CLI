@@ -4,7 +4,7 @@ import FormData from 'form-data';
 import * as config from '../utils/config.js';
 import path from 'path';
 
-const API_URL = 'http://localhost/dock-hosting/api';
+const API_URL = 'http://dockhosting.dev/api';
 
 export const deploy = async (zipFilePath) => {
     const token = config.get('auth.token');
