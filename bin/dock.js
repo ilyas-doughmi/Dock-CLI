@@ -4,6 +4,9 @@ import { Command } from 'commander';
 import * as logger from '../src/utils/logger.js';
 import loginCommand from '../src/commands/login.js';
 import deployCommand from '../src/commands/deploy.js';
+import logoutCommand from '../src/commands/logout.js';
+
+
 const program = new Command();
 
 program
@@ -22,4 +25,10 @@ program
     .action( async () =>{
         await deployCommand();
     })
+program
+  .command('logout')
+  .description('Log out and remove stored credentials')
+  .action(async () => {
+    await logoutCommand();
+  });
 program.parse(process.argv);
