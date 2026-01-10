@@ -13,4 +13,3 @@ export const get = (key) => config.get(key);
 export const del = (key) => config.delete(key);
 
 export const clear = () => config.clear();
-;
