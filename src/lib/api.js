@@ -34,7 +34,7 @@ export const deploy = async (zipFilePath) => {
         return response.data;
     }catch(error){
         if(error.response){
-            throw new Error(`server problem ${error.message}`);
+            throw new Error(`server problem ${error.response.data.message}`);
         }
         throw error;
     }
