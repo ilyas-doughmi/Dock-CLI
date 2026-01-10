@@ -21,7 +21,7 @@ program
     })
 program
     .command('deploy')
-    .description('Deploy your files easly with deploy command')
+    .description('Deploy the current project to the production environment')
     .action( async () =>{
         await deployCommand();
     })

@@ -4,15 +4,15 @@ import {login} from '../lib/auth.js';
 
 export default async function loginCommand()
 {
-    const spinner = ora('launching browser...').start();
+    const spinner = ora('Initiating authentication sequence...').start();
 
     try{
         const username = await login();
 
-        spinner.succeed();
-        logger.success(`login succ as ${username}`);
+        spinner.succeed('Authentication successful.');
+        logger.success(`Signed in as ${username}`);
     }catch(error){
-        spinner.fail('login failed');
+        spinner.fail('Authentication failed.');
         logger.error(error.message);
     }
 }

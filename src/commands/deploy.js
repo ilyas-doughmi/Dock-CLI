@@ -9,23 +9,23 @@ export default async function deployCommand() {
     const token = config.get('auth.token');
     
     if(!token){
-        logger.warning('You are not currently logged in.');
+        logger.warning('Authentication required. Please run "dock login" to continue.');
     }
     else{
-        const spinner = ora('Packaging your project...').start();
+        const spinner = ora('Packaging project files...').start();
 
         let zipPath = null;
 
         try {
 
             zipPath = await zipDirectory();
-            spinner.succeed('Project packed!');
+            spinner.succeed('Project successfully packaged.');
 
-            spinner.start('Uploading to Dock Hosting...');
+            spinner.start('Uploading deployment artifacts...');
             const result = await deploy(zipPath);
 
-            spinner.succeed('Deployment complete!');
-            logger.success(`Your site is live at: ${result.url}`);
+            spinner.succeed('Deployment completed successfully.');
+            logger.success(`Application deployed! Access it at: ${result.url}`);
 
         } catch (error) {
             spinner.fail('Deployment failed.');
