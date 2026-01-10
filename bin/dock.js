@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import * as logger from '../src/utils/logger.js';
+import loginCommand from '../src/commands/login.js';
 const program = new Command();
 
 program
@@ -9,9 +10,9 @@ program
   .description('Dock Hosting - CLI');
 
 program
-    .command('test')
-    .description('testing cli')
-    .action(()=>{
-        logger.success("All Good");
+    .command('login')
+    .description('Login to your Dock Hosting account')
+    .action(async ()=>{
+        await loginCommand();
     })
 program.parse(process.argv);
