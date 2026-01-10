@@ -6,7 +6,7 @@ import path from 'path';
 
 const API_URL = 'https://dockhosting.dev/api';
 
-export const deploy = async (zipFilePath) => {
+export const deploy = async (zipFilePath, projectId = null) => {
     const token = config.get('auth.token');
 
     if(!token){
@@ -16,8 +16,12 @@ export const deploy = async (zipFilePath) => {
     const form = new FormData();
     form.append('token', token);
 
-    const projectName = path.basename(process.cwd());
-    form.append('project_name', projectName);
+    if (projectId) {
+        form.append('project_id', projectId);
+    } else {
+        const projectName = path.basename(process.cwd());
+        form.append('project_name', projectName);
+    }
     
     form.append('project_zip', fs.createReadStream(zipFilePath));
 
@@ -31,7 +35,20 @@ export const deploy = async (zipFilePath) => {
             maxContentLength: Infinity
         });
 
-        return response.data;
+        let data = response.data;
+        if (typeof data === 'string') {
+            const jsonStart = data.indexOf('{');
+            const jsonEnd = data.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                try {
+                    const cleanJson = data.substring(jsonStart, jsonEnd + 1);
+                    data = JSON.parse(cleanJson);
+                } catch (e) {
+                }
+            }
+        }
+
+        return data;
     }catch(error){
         if(error.response){
             throw new Error(`server problem ${error.response.data.message}`);
