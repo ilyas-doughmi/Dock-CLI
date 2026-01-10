@@ -9,7 +9,7 @@ export default async function deployCommand() {
     const token = config.get('auth.token');
     
     if(!token){
-        logger.error('login first');
+        logger.warning('You are not currently logged in.');
     }
     else{
         const spinner = ora('Packaging your project...').start();
