@@ -2,7 +2,7 @@
   "name": "dockhosting-cli",
   "version": "1.0.2",
   "type": "module",
-  "description": "",
+  "description": "The official CLI for Dock Hosting. Deploy PHP apps instantly, secure your workflow, and manage deployments directly from your terminal.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
