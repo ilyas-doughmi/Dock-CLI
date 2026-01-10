@@ -10,7 +10,7 @@ import initCommand from '../src/commands/init.js';
 const program = new Command();
 
 program
-  .version('1.0.0')
+  .version('1.0.4')
   .description('Dock Hosting - CLI');
 
 program
