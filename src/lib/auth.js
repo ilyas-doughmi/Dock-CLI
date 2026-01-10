@@ -1,6 +1,6 @@
 import express from 'express';
 import open from 'open';
-import config from '../utils/config';
+import * as config from '../utils/config.js';
 
 export const login = () => {
     return new Promise((resolve,reject) => {
