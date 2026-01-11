@@ -11,7 +11,7 @@ import devCommand from '../src/commands/dev.js';
 const program = new Command();
 
 program
-  .version('1.0.4')
+  .version('1.0.5')
   .description('Dock Hosting - CLI');
 
 program
