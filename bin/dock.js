@@ -6,6 +6,7 @@ import loginCommand from '../src/commands/login.js';
 import deployCommand from '../src/commands/deploy.js';
 import logoutCommand from '../src/commands/logout.js';
 import initCommand from '../src/commands/init.js';
+import devCommand from '../src/commands/dev.js';
 
 const program = new Command();
 
@@ -25,6 +26,14 @@ program
     .action( async () =>{
         await deployCommand();
     })
+
+program
+    .command('dev')
+    .description('Start a local development server using Docker')
+    .action(async () => {
+        await devCommand();
+    });
+
 program
   .command('logout')
   .description('Log out and remove stored credentials')
