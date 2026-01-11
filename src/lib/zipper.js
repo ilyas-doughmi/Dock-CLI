@@ -20,9 +20,22 @@ export const zipDirectory = () =>{
 
         archive.pipe(output);
 
+        const defaultIgnore = ['node_modules/**', '.git/**', 'project.zip', '.env'];
+        let ignoreList = [...defaultIgnore];
+
+        const dockIgnorePath = path.join(process.cwd(), '.dockignore');
+        if (fs.existsSync(dockIgnorePath)) {
+            const dockIgnoreContent = fs.readFileSync(dockIgnorePath, 'utf-8');
+            const userIgnores = dockIgnoreContent.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0 && !line.startsWith('#'));
+            
+            ignoreList = [...ignoreList, ...userIgnores];
+        }
+
         archive.glob('**/*', {
             cwd: process.cwd(),
-            ignore: ['node_modules/**','.git/**', 'project.zip', '.env']
+            ignore: ignoreList
         })
 
         archive.finalize();
