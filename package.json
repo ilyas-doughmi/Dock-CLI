@@ -1,6 +1,6 @@
 {
   "name": "dockhosting-cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "description": "The official CLI for Dock Hosting. Deploy PHP apps instantly, secure your workflow, and manage deployments directly from your terminal.",
   "main": "index.js",
