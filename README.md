@@ -47,8 +47,50 @@ Here are the tools at your disposal:
 |---------|-------------|
 | `dock login` | Opens a browser window to securely sign you in. |
 | `dock deploy` | Packages your current directory and ships it to production. |
+| `dock dev` | Starts a local development server using Docker. |
 | `dock init` | (Optional) Sets up a basic configuration for your project. |
 | `dock logout` | Signs you out and removes credentials from your machine. |
+
+## Local Development
+
+Test your application locally in a production-identical Docker environment before deploying.
+
+```bash
+dock dev
+```
+
+This starts a local Docker container (PHP + Apache) serving your current directory.
+
+### Configuration (`dock.json`)
+You can customize the local environment by creating a `dock.json` file in your project root:
+
+```json
+{
+  "phpVersion": "8.2",
+  "port": 3000
+}
+```
+
+## Advanced Configuration
+
+### Ignoring Files (`.dockignore`)
+Exclude unnecessary files (like `node_modules`, tests, large assets) from deployment by creating a `.dockignore` file:
+
+```gitignore
+.git
+node_modules
+tests/
+local-config.php
+```
+
+### Custom Project Name
+By default, the folder name is used as the project name. Force a specific name using `dock.json`:
+
+```json
+{
+  "name": "my-production-app"
+}
+```
 
 ## Resources
 
