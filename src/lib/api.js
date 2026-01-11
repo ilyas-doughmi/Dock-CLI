@@ -19,7 +19,19 @@ export const deploy = async (zipFilePath, projectId = null) => {
     if (projectId) {
         form.append('project_id', projectId);
     } else {
-        const projectName = path.basename(process.cwd());
+        let projectName = path.basename(process.cwd());
+        
+        const dockConfigPath = path.join(process.cwd(), 'dock.json');
+        if (fs.existsSync(dockConfigPath)) {
+            try {
+                const dockConfig = JSON.parse(fs.readFileSync(dockConfigPath, 'utf8'));
+                if (dockConfig.name) {
+                    projectName = dockConfig.name;
+                }
+            } catch (e) {
+            }
+        }
+
         form.append('project_name', projectName);
     }
     
