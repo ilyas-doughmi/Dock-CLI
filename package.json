@@ -1,0 +1,33 @@
+{
+    "name": "dockhosting-cli",
+    "version": "2.0.0",
+    "description": "CLI for DockHosting V2",
+    "main": "bin/dock",
+    "bin": {
+        "dock": "./bin/dock"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "dockhosting",
+        "cli",
+        "deploy"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "adm-zip": "^0.5.16",
+        "archiver": "^7.0.0",
+        "axios": "^1.6.0",
+        "chalk": "^4.1.2",
+        "commander": "^11.0.0",
+        "conf": "^10.2.0",
+        "express": "^4.18.2",
+        "form-data": "^4.0.0",
+        "inquirer": "^8.2.5",
+        "open": "^8.4.2",
+        "ora": "^5.4.1",
+        "ws": "^8.19.0"
+    }
+}
