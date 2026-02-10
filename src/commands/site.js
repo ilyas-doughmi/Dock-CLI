@@ -64,13 +64,6 @@ async function siteExecCommand(projectName, command) {
     const project = await selectProject(projectName);
     if (!project) return;
 
-    // Collect remaining args as the full command
-    const args = Array.from(arguments);
-    if (args.length > 2) {
-        // Commander passes extra args individually
-        command = args.slice(1).join(' ');
-    }
-
     if (!command) {
         const answer = await inquirer.prompt([
             {
