@@ -1,18 +1,71 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
+const chalk = require('chalk');
 const loginCommand = require('../src/commands/login');
 const logoutCommand = require('../src/commands/logout');
 const deployCommand = require('../src/commands/deploy');
 const cloneCommand = require('../src/commands/clone');
 const { dbListCommand, dbInfoCommand, dbExecCommand, dbConnectCommand, dbShellCommand } = require('../src/commands/db');
+const { siteListCommand, siteExecCommand, siteShellCommand } = require('../src/commands/site');
 
 const program = new Command();
 
 program
     .name('dock')
     .description('CLI for DockHosting V2')
-    .version('2.1.0');
+    .version('2.2.0');
+
+program.configureHelp({
+    formatHelp: (cmd, helper) => {
+        if (cmd.name() === 'dock') {
+            return `
+${chalk.bold.cyan('  DockHosting CLI')} ${chalk.gray('v2.2.0')}
+${chalk.gray('  Deploy, manage, and interact with your projects & databases.\n')}
+
+${chalk.bold('  GENERAL')}
+    ${chalk.yellow('dock login')}                         Login to DockHosting
+    ${chalk.yellow('dock logout')}                        Logout from DockHosting
+
+${chalk.bold('  PROJECTS')}
+    ${chalk.yellow('dock deploy')}                        Deploy current directory to a project
+    ${chalk.yellow('dock clone')} ${chalk.gray('[name]')}                 Clone a project from DockHosting
+
+${chalk.bold('  SITES (Container Access)')}
+    ${chalk.yellow('dock site list')}                     List all your projects
+    ${chalk.yellow('dock site exec')} ${chalk.gray('[name] [cmd]')}       Execute a command inside the project container
+    ${chalk.yellow('dock site shell')} ${chalk.gray('[name]')}            Open an interactive shell inside the container
+
+${chalk.bold('  DATABASES')}
+    ${chalk.yellow('dock db list')}                       List all your database services
+    ${chalk.yellow('dock db info')} ${chalk.gray('[name]')}                Show connection details & credentials
+    ${chalk.yellow('dock db connect')} ${chalk.gray('[name]')}             Open interactive database shell (REPL)
+    ${chalk.yellow('dock db exec')} ${chalk.gray('[name] [query]')}        Execute a single SQL query / command
+    ${chalk.yellow('dock db shell')} ${chalk.gray('[name] [cmd]')}         Run a shell command inside the DB container
+
+${chalk.bold('  OPTIONS')}
+    ${chalk.yellow('-V, --version')}                      Show version number
+    ${chalk.yellow('-h, --help')}                         Show this help
+
+${chalk.gray('  Examples:')}
+    ${chalk.gray('$')} dock login
+    ${chalk.gray('$')} dock deploy
+    ${chalk.gray('$')} dock site list
+    ${chalk.gray('$')} dock site exec my-laravel "php artisan migrate"
+    ${chalk.gray('$')} dock site shell my-laravel
+    ${chalk.gray('$')} dock db connect my-postgres
+    ${chalk.gray('$')} dock db exec my-postgres "SELECT * FROM users;"
+`;
+        }
+        // Default formatting for subcommands
+        const termWidth = (process.stdout.columns || 80);
+        const desc = cmd.description() ? `\n${cmd.description()}\n` : '';
+        const usage = `\nUsage: ${cmd.name()} ${cmd.usage()}\n`;
+        const cmds = cmd.commands.length ? '\nCommands:\n' + cmd.commands.map(c => `  ${c.name().padEnd(20)} ${c.description()}`).join('\n') + '\n' : '';
+        const opts = cmd.options.length ? '\nOptions:\n' + cmd.options.map(o => `  ${o.flags.padEnd(20)} ${o.description}`).join('\n') + '\n' : '';
+        return desc + usage + cmds + opts;
+    }
+});
 
 program
     .command('login')
@@ -56,5 +109,20 @@ db.command('exec [serviceName] [query]')
 db.command('shell [serviceName] [command]')
     .description('Execute a shell command inside the database container')
     .action(dbShellCommand);
+
+// Site (Project Container) Commands
+const site = program.command('site').description('Run commands inside project containers');
+
+site.command('list')
+    .description('List all your projects')
+    .action(siteListCommand);
+
+site.command('exec [projectName] [command]')
+    .description('Execute a command inside the project container')
+    .action(siteExecCommand);
+
+site.command('shell [projectName]')
+    .description('Open an interactive shell inside the project container')
+    .action(siteShellCommand);
 
 program.parse(process.argv);
