@@ -5,13 +5,14 @@ const loginCommand = require('../src/commands/login');
 const logoutCommand = require('../src/commands/logout');
 const deployCommand = require('../src/commands/deploy');
 const cloneCommand = require('../src/commands/clone');
+const { dbListCommand, dbInfoCommand, dbExecCommand, dbConnectCommand, dbShellCommand } = require('../src/commands/db');
 
 const program = new Command();
 
 program
     .name('dock')
     .description('CLI for DockHosting V2')
-    .version('2.0.0');
+    .version('2.1.0');
 
 program
     .command('login')
@@ -32,5 +33,28 @@ program
     .command('clone [projectName]')
     .description('Clone a project from DockHosting')
     .action(cloneCommand);
+
+// Database Commands
+const db = program.command('db').description('Manage database services');
+
+db.command('list')
+    .description('List all your database services')
+    .action(dbListCommand);
+
+db.command('info [serviceName]')
+    .description('Show details of a database service (connection info, credentials)')
+    .action(dbInfoCommand);
+
+db.command('connect [serviceName]')
+    .description('Open an interactive database shell (REPL)')
+    .action(dbConnectCommand);
+
+db.command('exec [serviceName] [query]')
+    .description('Execute a single database query/command')
+    .action(dbExecCommand);
+
+db.command('shell [serviceName] [command]')
+    .description('Execute a shell command inside the database container')
+    .action(dbShellCommand);
 
 program.parse(process.argv);

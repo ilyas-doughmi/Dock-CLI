@@ -81,6 +81,23 @@ async function deployCommand() {
                 type: 'node'
             };
 
+            // Auto-detect project type
+            if (fs.existsSync(path.join(process.cwd(), 'docker-compose.yml')) || fs.existsSync(path.join(process.cwd(), 'docker-compose.yaml'))) {
+                defaults.type = 'docker';
+            } else if (fs.existsSync(path.join(process.cwd(), 'Dockerfile'))) {
+                defaults.type = 'docker';
+            } else if (fs.existsSync(path.join(process.cwd(), 'artisan'))) {
+                defaults.type = 'laravel'; // Laravel specific
+            } else if (fs.existsSync(path.join(process.cwd(), 'pom.xml'))) {
+                defaults.type = 'spring-boot';
+            } else if (fs.existsSync(path.join(process.cwd(), 'requirements.txt'))) {
+                defaults.type = 'python';
+            } else if (fs.existsSync(path.join(process.cwd(), 'composer.json')) || fs.existsSync(path.join(process.cwd(), 'index.php'))) {
+                defaults.type = 'php';
+            } else if (fs.existsSync(path.join(process.cwd(), 'go.mod'))) {
+                defaults.type = 'go';
+            }
+
             const answers = await inquirer.prompt([
                 {
                     type: 'input',
@@ -93,7 +110,16 @@ async function deployCommand() {
                     type: 'list',
                     name: 'type',
                     message: 'Project Type:',
-                    choices: ['node', 'python', 'php', 'go', 'static', 'html'],
+                    choices: [
+                        { name: 'Node.js', value: 'node' },
+                        { name: 'Python (Flask)', value: 'python' },
+                        { name: 'PHP (Generic)', value: 'php' },
+                        { name: 'PHP (Laravel)', value: 'laravel' },
+                        { name: 'Go', value: 'go' },
+                        { name: 'Java (Spring Boot)', value: 'spring-boot' },
+                        { name: 'Docker (Dockerfile/Compose)', value: 'docker' },
+                        { name: 'Static HTML', value: 'html' }
+                    ],
                     default: defaults.type
                 }
             ]);
@@ -218,9 +244,30 @@ async function deployCommand() {
     archive.pipe(output);
 
     console.log(chalk.cyan('Zipping project files...'));
+
+    const ignorePatterns = ['node_modules/**', 'vendor/**', '.git/**', '.dock/**', 'project.zip'];
+    const dockIgnorePath = path.join(process.cwd(), '.dockignore');
+
+    if (fs.existsSync(dockIgnorePath)) {
+        console.log(chalk.gray('Using .dockignore'));
+        const dockIgnore = fs.readFileSync(dockIgnorePath, 'utf8').split('\n');
+
+        dockIgnore.forEach(line => {
+            const pattern = line.trim();
+            if (pattern && !pattern.startsWith('#')) {
+                ignorePatterns.push(pattern);
+                // Also ignore directory contents if it matches a folder
+                if (pattern.endsWith('/')) {
+                    ignorePatterns.push(pattern + '**');
+                }
+            }
+        });
+    }
+
     archive.glob('**/*', {
         cwd: process.cwd(),
-        ignore: ['node_modules/**', '.git/**', '.dock/**', 'project.zip', '.env']
+        ignore: ignorePatterns,
+        dot: true // Include dotfiles (like .env.example) but ignore will filter them out if needed
     });
 
     archive.finalize();

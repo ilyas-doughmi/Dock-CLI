@@ -1,6 +1,6 @@
 {
     "name": "dockhosting-cli",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "CLI for DockHosting V2",
     "main": "bin/dock",
     "bin": {
@@ -12,10 +12,20 @@
     "keywords": [
         "dockhosting",
         "cli",
-        "deploy"
+        "deployment",
+        "hosting",
+        "docker"
     ],
-    "author": "",
+    "author": "DockHosting",
     "license": "ISC",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ilyas-doughmi/Dock-CLI.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ilyas-doughmi/Dock-CLI/issues"
+    },
+    "homepage": "https://github.com/ilyas-doughmi/Dock-CLI#readme",
     "dependencies": {
         "adm-zip": "^0.5.16",
         "archiver": "^7.0.0",
