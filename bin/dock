@@ -14,13 +14,13 @@ const program = new Command();
 program
     .name('dock')
     .description('CLI for DockHosting V2')
-    .version('2.2.0');
+    .version('2.3.0');
 
 program.configureHelp({
     formatHelp: (cmd, helper) => {
         if (cmd.name() === 'dock') {
             return `
-${chalk.bold.cyan('  DockHosting CLI')} ${chalk.gray('v2.2.0')}
+${chalk.bold.cyan('  DockHosting CLI')} ${chalk.gray('v2.3.0')}
 ${chalk.gray('  Deploy, manage, and interact with your projects & databases.\n')}
 
 ${chalk.bold('  GENERAL')}
