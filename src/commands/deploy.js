@@ -162,27 +162,50 @@ async function deployCommand() {
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     output.on('close', async () => {
-        console.log(chalk.gray(`\nZipped ${archive.pointer()} total bytes`));
+        console.log(chalk.gray(`Zipped ${archive.pointer()} total bytes`));
 
-        // STEP 1: Connect WebSocket BEFORE triggering deploy to avoid missing logs
         const wsUrl = API_URL.replace('http', 'ws') + '/ws?token=' + token;
         const buildChannel = `project:${projectId}:build`;
         let wsReady = false;
         let deployDone = false;
+        let lineCount = 0;
 
-        const ws = new WebSocket(wsUrl);
+        const cleanup = () => {
+            try { fs.unlinkSync(zipPath); } catch (e) {}
+        };
+
+        // ── STEP 1: Connect WebSocket BEFORE triggering deploy ──
+        const ws = new WebSocket(wsUrl, {
+            perMessageDeflate: false,
+            handshakeTimeout: 10000,
+        });
+
+        // Respond to server pings automatically (ws library does this by default)
+        // Also send our own pings as extra keepalive
+        let pingInterval;
 
         const wsReadyPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 10000);
+
             ws.on('open', () => {
+                clearTimeout(timeout);
                 ws.send(JSON.stringify({ channel: buildChannel, data: 'subscribe' }));
                 wsReady = true;
+
+                // Send client-side pings every 10s to keep connection alive
+                pingInterval = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        try { ws.ping(); } catch (e) {}
+                    }
+                }, 10000);
+
                 resolve();
             });
+
             ws.on('error', (err) => {
+                clearTimeout(timeout);
                 reject(err);
             });
-            // Timeout if WS doesn't connect in 10s
-            setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000);
         });
 
         try {
@@ -192,9 +215,8 @@ async function deployCommand() {
             console.log(chalk.yellow('Deploying without live logs...'));
         }
 
-        // STEP 2: Now trigger the deploy
-        const uploadSpinner = ora('Uploading and building project...').start();
-
+        // ── STEP 2: Upload and trigger deploy ──
+        const uploadSpinner = ora('Uploading project...').start();
         const form = new FormData();
         form.append('file', fs.createReadStream(zipPath));
 
@@ -207,85 +229,95 @@ async function deployCommand() {
                 maxContentLength: Infinity,
                 maxBodyLength: Infinity
             });
-            uploadSpinner.succeed(chalk.green('Deployment triggered successfully!'));
-            console.log(chalk.blue(`Monitor your deployment at: ${WEB_URL}/projects/${projectId}`));
+            uploadSpinner.succeed(chalk.green('Deployment triggered!'));
+            console.log(chalk.blue(`Dashboard: ${WEB_URL}/projects/${projectId}\n`));
 
             if (!wsReady) {
-                // WS failed, just exit
-                fs.unlinkSync(zipPath);
+                cleanup();
                 process.exit(0);
             }
-
-            console.log(chalk.yellow('Streaming build logs...\n'));
-
         } catch (error) {
-            uploadSpinner.fail(chalk.red('Deployment failed'));
-            if (error.response) {
-                console.log(chalk.red(`Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`));
-            } else {
-                console.log(chalk.red(`Error: ${error.message}`));
-            }
-            ws.close();
-            fs.unlinkSync(zipPath);
+            uploadSpinner.fail(chalk.red('Upload failed'));
+            const msg = error.response
+                ? `${error.response.status} - ${JSON.stringify(error.response.data)}`
+                : error.message;
+            console.log(chalk.red(msg));
+            if (ws.readyState === WebSocket.OPEN) ws.close();
+            if (pingInterval) clearInterval(pingInterval);
+            cleanup();
             process.exit(1);
         }
 
-        // STEP 3: Stream logs until deployment ends
-        ws.on('message', (data) => {
-            try {
-                const msg = JSON.parse(data);
-                if (msg.channel === buildChannel) {
-                    const log = msg.data;
-                    if (typeof log === 'string') {
-                        // Check for deployment end signal
-                        if (log.startsWith('__DEPLOY_END__:')) {
-                            const result = log.split(':')[1];
-                            deployDone = true;
-                            console.log('');
-                            if (result === 'success') {
-                                console.log(chalk.green.bold('Deployment Successful! 🚀'));
-                            } else {
-                                console.log(chalk.red.bold('Deployment Failed ❌'));
-                            }
-                            ws.close();
-                            fs.unlinkSync(zipPath);
-                            process.exit(result === 'success' ? 0 : 1);
-                            return;
-                        }
+        // ── STEP 3: Stream logs ──
+        const finish = (success) => {
+            if (deployDone) return;
+            deployDone = true;
+            if (pingInterval) clearInterval(pingInterval);
 
-                        // Don't print internal signals
-                        if (log.startsWith('__')) return;
-
-                        // Color-code different log types
-                        if (log.includes('Error') || log.includes('FAILURE') || log.includes('failed')) {
-                            process.stdout.write(chalk.red(log) + '\n');
-                        } else if (log.includes('Warning') || log.includes('warning')) {
-                            process.stdout.write(chalk.yellow(log) + '\n');
-                        } else if (log.includes('Complete') || log.includes('Success') || log.includes('ready')) {
-                            process.stdout.write(chalk.green(log) + '\n');
-                        } else {
-                            process.stdout.write(chalk.gray(log) + '\n');
-                        }
-                    }
-                }
-            } catch (e) {
-                // Ignore parse errors
+            console.log('');
+            if (success) {
+                console.log(chalk.green.bold('  ✓ Deployment Successful! 🚀'));
+            } else {
+                console.log(chalk.red.bold('  ✗ Deployment Failed'));
             }
+            console.log('');
+
+            if (ws.readyState === WebSocket.OPEN) ws.close();
+            cleanup();
+            process.exit(success ? 0 : 1);
+        };
+
+        ws.on('message', (raw) => {
+            try {
+                const msg = JSON.parse(raw);
+                if (msg.channel !== buildChannel) return;
+
+                const line = msg.data;
+                if (typeof line !== 'string') return;
+
+                // End signal
+                if (line.startsWith('__DEPLOY_END__:')) {
+                    finish(line.includes('success'));
+                    return;
+                }
+                if (line.startsWith('__')) return;
+
+                lineCount++;
+
+                // Format output with line prefix
+                const prefix = chalk.dim(`  │ `);
+
+                if (line.includes('Deployment Complete')) {
+                    console.log(prefix + chalk.green.bold(line));
+                } else if (line.includes('Error') || line.includes('FAILURE') || line.includes('failed') || line.includes('FATAL')) {
+                    console.log(prefix + chalk.red(line));
+                } else if (line.includes('Warning') || line.includes('warning')) {
+                    console.log(prefix + chalk.yellow(line));
+                } else if (line.includes('Starting') || line.includes('Creating') || line.includes('Pulling') || line.includes('Waiting')) {
+                    console.log(prefix + chalk.cyan(line));
+                } else if (line.includes('ready') || line.includes('Complete') || line.includes('Success') || line.includes('successfully')) {
+                    console.log(prefix + chalk.green(line));
+                } else {
+                    console.log(prefix + chalk.gray(line));
+                }
+            } catch (e) {}
         });
 
         ws.on('close', () => {
             if (!deployDone) {
-                console.log(chalk.yellow('\nLog stream disconnected. Deployment continues on server.'));
-                console.log(chalk.blue(`Check status at: ${WEB_URL}/projects/${projectId}`));
-                try { fs.unlinkSync(zipPath); } catch(e) {}
+                if (pingInterval) clearInterval(pingInterval);
+                console.log(chalk.yellow('\n  Log stream disconnected. Deployment continues on server.'));
+                console.log(chalk.blue(`  Check: ${WEB_URL}/projects/${projectId}`));
+                cleanup();
                 process.exit(0);
             }
         });
 
         ws.on('error', (err) => {
             if (!deployDone) {
-                console.log(chalk.red('\nLog stream error: ' + err.message));
-                try { fs.unlinkSync(zipPath); } catch(e) {}
+                if (pingInterval) clearInterval(pingInterval);
+                console.log(chalk.red('\n  Log stream error: ' + err.message));
+                cleanup();
                 process.exit(0);
             }
         });
@@ -293,10 +325,11 @@ async function deployCommand() {
         // Safety timeout: 10 minutes
         setTimeout(() => {
             if (!deployDone) {
-                console.log(chalk.yellow('\nLog stream timeout (10min). Deployment continues on server.'));
-                console.log(chalk.blue(`Check status at: ${WEB_URL}/projects/${projectId}`));
-                ws.close();
-                try { fs.unlinkSync(zipPath); } catch(e) {}
+                if (pingInterval) clearInterval(pingInterval);
+                console.log(chalk.yellow(`\n  Timeout (10min). Received ${lineCount} log lines.`));
+                console.log(chalk.blue(`  Check: ${WEB_URL}/projects/${projectId}`));
+                if (ws.readyState === WebSocket.OPEN) ws.close();
+                cleanup();
                 process.exit(0);
             }
         }, 600000);
