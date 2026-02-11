@@ -164,6 +164,35 @@ async function deployCommand() {
     output.on('close', async () => {
         console.log(chalk.gray(`\nZipped ${archive.pointer()} total bytes`));
 
+        // STEP 1: Connect WebSocket BEFORE triggering deploy to avoid missing logs
+        const wsUrl = API_URL.replace('http', 'ws') + '/ws?token=' + token;
+        const buildChannel = `project:${projectId}:build`;
+        let wsReady = false;
+        let deployDone = false;
+
+        const ws = new WebSocket(wsUrl);
+
+        const wsReadyPromise = new Promise((resolve, reject) => {
+            ws.on('open', () => {
+                ws.send(JSON.stringify({ channel: buildChannel, data: 'subscribe' }));
+                wsReady = true;
+                resolve();
+            });
+            ws.on('error', (err) => {
+                reject(err);
+            });
+            // Timeout if WS doesn't connect in 10s
+            setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000);
+        });
+
+        try {
+            await wsReadyPromise;
+        } catch (err) {
+            console.log(chalk.yellow('Could not connect to log stream: ' + err.message));
+            console.log(chalk.yellow('Deploying without live logs...'));
+        }
+
+        // STEP 2: Now trigger the deploy
         const uploadSpinner = ora('Uploading and building project...').start();
 
         const form = new FormData();
@@ -179,50 +208,15 @@ async function deployCommand() {
                 maxBodyLength: Infinity
             });
             uploadSpinner.succeed(chalk.green('Deployment triggered successfully!'));
-
             console.log(chalk.blue(`Monitor your deployment at: ${WEB_URL}/projects/${projectId}`));
-            console.log(chalk.yellow('Waiting for build logs...'));
 
-            const wsUrl = API_URL.replace('http', 'ws') + '/ws?token=' + token;
-            const ws = new WebSocket(wsUrl);
-
-            ws.on('open', () => {
-                ws.send(JSON.stringify({ channel: `project:${projectId}:build`, data: 'subscribe' }));
-            });
-
-            ws.on('message', (data) => {
-                try {
-                    const msg = JSON.parse(data);
-                    if (msg.channel === `project:${projectId}:build`) {
-                        const log = msg.data;
-                        if (typeof log === 'string') {
-                            process.stdout.write(chalk.gray(log + '\n'));
-
-                            if (log.includes('Deployment Complete') || log.includes('Success')) {
-                                console.log(chalk.green('\nDeployment Successful! 🚀'));
-                                ws.close();
-                                process.exit(0);
-                            }
-                            if (log.includes('Deployment crashed unexpectedly')) {
-                                console.log(chalk.red('\nDeployment Failed! ❌'));
-                                ws.close();
-                                process.exit(1);
-                            }
-                        }
-                    }
-                } catch (e) {
-                }
-            });
-
-            ws.on('error', (err) => {
-                console.log(chalk.red('Log stream error: ' + err.message));
-                process.exit(0); // Exit gracefully, deployment continues on server
-            });
-
-            setTimeout(() => {
-                console.log(chalk.yellow('Log stream timeout. Deployment continues on server.'));
+            if (!wsReady) {
+                // WS failed, just exit
+                fs.unlinkSync(zipPath);
                 process.exit(0);
-            }, 600000);
+            }
+
+            console.log(chalk.yellow('Streaming build logs...\n'));
 
         } catch (error) {
             uploadSpinner.fail(chalk.red('Deployment failed'));
@@ -231,9 +225,81 @@ async function deployCommand() {
             } else {
                 console.log(chalk.red(`Error: ${error.message}`));
             }
+            ws.close();
             fs.unlinkSync(zipPath);
             process.exit(1);
         }
+
+        // STEP 3: Stream logs until deployment ends
+        ws.on('message', (data) => {
+            try {
+                const msg = JSON.parse(data);
+                if (msg.channel === buildChannel) {
+                    const log = msg.data;
+                    if (typeof log === 'string') {
+                        // Check for deployment end signal
+                        if (log.startsWith('__DEPLOY_END__:')) {
+                            const result = log.split(':')[1];
+                            deployDone = true;
+                            console.log('');
+                            if (result === 'success') {
+                                console.log(chalk.green.bold('Deployment Successful! 🚀'));
+                            } else {
+                                console.log(chalk.red.bold('Deployment Failed ❌'));
+                            }
+                            ws.close();
+                            fs.unlinkSync(zipPath);
+                            process.exit(result === 'success' ? 0 : 1);
+                            return;
+                        }
+
+                        // Don't print internal signals
+                        if (log.startsWith('__')) return;
+
+                        // Color-code different log types
+                        if (log.includes('Error') || log.includes('FAILURE') || log.includes('failed')) {
+                            process.stdout.write(chalk.red(log) + '\n');
+                        } else if (log.includes('Warning') || log.includes('warning')) {
+                            process.stdout.write(chalk.yellow(log) + '\n');
+                        } else if (log.includes('Complete') || log.includes('Success') || log.includes('ready')) {
+                            process.stdout.write(chalk.green(log) + '\n');
+                        } else {
+                            process.stdout.write(chalk.gray(log) + '\n');
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors
+            }
+        });
+
+        ws.on('close', () => {
+            if (!deployDone) {
+                console.log(chalk.yellow('\nLog stream disconnected. Deployment continues on server.'));
+                console.log(chalk.blue(`Check status at: ${WEB_URL}/projects/${projectId}`));
+                try { fs.unlinkSync(zipPath); } catch(e) {}
+                process.exit(0);
+            }
+        });
+
+        ws.on('error', (err) => {
+            if (!deployDone) {
+                console.log(chalk.red('\nLog stream error: ' + err.message));
+                try { fs.unlinkSync(zipPath); } catch(e) {}
+                process.exit(0);
+            }
+        });
+
+        // Safety timeout: 10 minutes
+        setTimeout(() => {
+            if (!deployDone) {
+                console.log(chalk.yellow('\nLog stream timeout (10min). Deployment continues on server.'));
+                console.log(chalk.blue(`Check status at: ${WEB_URL}/projects/${projectId}`));
+                ws.close();
+                try { fs.unlinkSync(zipPath); } catch(e) {}
+                process.exit(0);
+            }
+        }, 600000);
     });
 
     archive.on('error', (err) => {
